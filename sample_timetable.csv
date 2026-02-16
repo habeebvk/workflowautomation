@@ -1,0 +1,36 @@
+Day,Period,Teacher Name,Subject,Class,Start Time,End Time
+Monday,1,Sharina,Java,10A,09:00,09:45
+Monday,2,Arun,Python,10B,09:45,10:30
+Monday,3,Divya,C Programming,10A,10:45,11:30
+Monday,4,Jose,Mathematics,10B,11:30,12:15
+Monday,5,Fathima,Computer Networks,10A,12:15,13:00
+Tuesday,1,Jose,Mathematics,10A,09:00,09:45
+Tuesday,2,Sharina,Java,10B,09:45,10:30
+Tuesday,3,Arun,Python,10A,10:45,11:30
+Tuesday,4,Divya,C Programming,10B,11:30,12:15
+Tuesday,5,Fathima,Computer Networks,10A,12:15,13:00
+Wednesday,1,Divya,C Programming,10A,09:00,09:45
+Wednesday,2,Jose,Mathematics,10B,09:45,10:30
+Wednesday,3,Sharina,Java,10A,10:45,11:30
+Wednesday,4,Arun,Python,10B,11:30,12:15
+Wednesday,5,Fathima,Computer Networks,10A,12:15,13:00
+Thursday,1,Arun,Python,10A,09:00,09:45
+Thursday,2,Divya,C Programming,10B,09:45,10:30
+Thursday,3,Jose,Mathematics,10A,10:45,11:30
+Thursday,4,Sharina,Java,10B,11:30,12:15
+Thursday,5,Fathima,Computer Networks,10A,12:15,13:00
+Friday,1,Fathima,Computer Networks,10A,09:00,09:45
+Friday,2,Arun,Python,10B,09:45,10:30
+Friday,3,Divya,C Programming,10A,10:45,11:30
+Friday,4,Jose,Mathematics,10B,11:30,12:15
+Friday,5,Sharina,Java,10A,12:15,13:00
+Saturday,1,Sharina,Java,10A,09:00,09:45
+Saturday,2,Jose,Mathematics,10B,09:45,10:30
+Saturday,3,Arun,Python,10A,10:45,11:30
+Saturday,4,Fathima,Computer Networks,10B,11:30,12:15
+Saturday,5,Divya,C Programming,10A,12:15,13:00
+Sunday,1,Jose,Mathematics,10A,09:00,09:45
+Sunday,2,Fathima,Computer Networks,10B,09:45,10:30
+Sunday,3,Sharina,Java,10A,10:45,11:30
+Sunday,4,Divya,C Programming,10B,11:30,12:15
+Sunday,5,Arun,Python,10A,12:15,13:00

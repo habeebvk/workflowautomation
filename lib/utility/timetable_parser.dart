@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:csv/csv.dart';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 import '../model/timetable_model.dart';
@@ -40,97 +41,109 @@ class TimetableParser {
       List<TimetableEntry> entries = [];
       int skippedLines = 0;
 
-      // Try to parse each line
+      // Pre-process lines: sometimes PDF extraction puts each cell on a new line
+      // If we see a day name followed by single-word lines, we should try to group them.
+      List<List<String>> reconstructedRows = [];
       for (int i = 0; i < lines.length; i++) {
         var line = lines[i];
 
-        // Skip header-like lines
-        if (line.toLowerCase().contains('day') &&
-            line.toLowerCase().contains('period')) {
-          print('DEBUG: Skipping header line: $line');
+        // Skip title/header
+        if (line.toUpperCase().contains('CLASS TIMETABLE') ||
+            (line.toLowerCase().contains('day') &&
+                line.toLowerCase().contains('period'))) {
           continue;
         }
 
-        // Try different separation methods
-        List<String> parts = [];
+        List<String> currentParts = _splitLine(line);
 
-        // Method 1: Comma separated
-        if (line.contains(',')) {
-          parts = line.split(',').map((p) => p.trim()).toList();
-          print('DEBUG: Line $i (comma): ${parts.length} parts');
-        }
-        // Method 2: Tab separated
-        else if (line.contains('\t')) {
-          parts = line
-              .split('\t')
-              .map((p) => p.trim())
-              .where((p) => p.isNotEmpty)
-              .toList();
-          print('DEBUG: Line $i (tab): ${parts.length} parts');
-        }
-        // Method 3: Multiple spaces (2+)
-        else if (line.contains(RegExp(r'\s{2,}'))) {
-          parts = line
-              .split(RegExp(r'\s{2,}'))
-              .map((p) => p.trim())
-              .where((p) => p.isNotEmpty)
-              .toList();
-          print('DEBUG: Line $i (multi-space): ${parts.length} parts');
-        }
-        // Method 4: Single space (fallback for simple tables)
-        else if (line.contains(' ')) {
-          parts = line
-              .split(' ')
-              .map((p) => p.trim())
-              .where((p) => p.isNotEmpty)
-              .toList();
-          print('DEBUG: Line $i (single-space): ${parts.length} parts');
-        }
+        // If this part starts with a valid day...
+        if (currentParts.isNotEmpty && isValidDay(currentParts[0])) {
+          // If it already has enough parts, it's a full line
+          if (currentParts.length >= 6) {
+            reconstructedRows.add(currentParts);
+          }
+          // Otherwise, it might be the start of a multi-line row
+          else {
+            List<String> fullRow = List.from(currentParts);
+            int j = i + 1;
+            while (j < lines.length && fullRow.length < 6) {
+              var nextLine = lines[j];
+              var nextParts = _splitLine(nextLine);
 
-        // Need at least 7 parts
-        if (parts.length >= 7) {
-          try {
-            // Validate day name
-            if (!isValidDay(parts[0])) {
-              print('DEBUG: Invalid day: ${parts[0]}');
-              skippedLines++;
-              continue;
+              // If next line starts with a day, it's a new row, so stop here
+              if (nextParts.isNotEmpty && isValidDay(nextParts[0])) break;
+
+              fullRow.addAll(nextParts);
+              j++;
             }
-
-            final entry = TimetableEntry(
-              day: parts[0].trim(),
-              period: int.parse(parts[1].trim()),
-              teacherName: parts[2].trim(),
-              subject: parts[3].trim(),
-              className: parts[4].trim(),
-              startTime: parts[5].trim(),
-              endTime: parts[6].trim(),
-              attendance: "Present",
-            );
-            entries.add(entry);
-            print(
-              'DEBUG: Successfully parsed entry: ${entry.teacherName} - ${entry.subject}',
-            );
-          } catch (e) {
-            print('DEBUG: Error parsing line $i: $e');
-            print('DEBUG: Parts: $parts');
-            skippedLines++;
-            continue;
+            if (fullRow.length >= 6) {
+              reconstructedRows.add(fullRow);
+              i = j - 1; // Skip the lines we consumed
+            } else {
+              skippedLines++;
+            }
           }
         } else {
-          print('DEBUG: Line $i has only ${parts.length} parts, need 7');
           skippedLines++;
         }
       }
 
-      print('DEBUG: Total entries parsed: ${entries.length}');
-      print('DEBUG: Total lines skipped: $skippedLines');
+      // Parse the reconstructed rows
+      for (var parts in reconstructedRows) {
+        try {
+          String day = parts[0];
+          int period = int.parse(parts[1]);
+          String teacher = parts[2];
+          String subject = parts[3];
+          String className = parts[4];
+          String startTime = "";
+          String endTime = "";
+
+          if (parts.length == 7 && !parts[6].contains('-')) {
+            // Legacy 7-column format
+            startTime = parts[5];
+            endTime = parts[6];
+          } else {
+            // New 6-column format or combined time
+            String timePart = parts.sublist(5).join(" ");
+
+            if (timePart.contains('-')) {
+              var timeSplit = timePart.split('-').map((s) => s.trim()).toList();
+              if (timeSplit.length >= 2) {
+                startTime = timeSplit[0];
+                endTime = timeSplit[1];
+              }
+            } else if (parts.length >= 7) {
+              startTime = parts[5];
+              endTime = parts[6];
+            }
+          }
+
+          if (startTime.isNotEmpty) {
+            final entry = TimetableEntry(
+              day: day,
+              period: period,
+              teacherName: teacher,
+              subject: subject,
+              className: className,
+              startTime: startTime,
+              endTime: endTime,
+              attendance: "Present",
+            );
+            entries.add(entry);
+          } else {
+            skippedLines++;
+          }
+        } catch (e) {
+          skippedLines++;
+        }
+      }
 
       if (entries.isEmpty) {
         throw Exception(
           'No valid timetable entries found in PDF. '
           'Parsed ${lines.length} lines, skipped $skippedLines. '
-          'Please ensure PDF has 7 columns: Day, Period, Teacher Name, Subject, Class, Start Time, End Time',
+          'Please ensure PDF has 6 columns: Day, Period, Teacher, Subject, Class, Time',
         );
       }
 
@@ -216,5 +229,155 @@ class TimetableParser {
       'Saturday',
       'Sunday',
     ];
+  }
+
+  /// Generate a sample PDF file and return its bytes
+  static List<int> generateSamplePdf() {
+    // Create a new PDF document
+    final PdfDocument document = PdfDocument();
+
+    // Add a new page to the document
+    final PdfPage page = document.pages.add();
+
+    // Create a font
+    final PdfFont titleFont = PdfStandardFont(
+      PdfFontFamily.timesRoman,
+      20,
+      style: PdfFontStyle.bold,
+    );
+    final PdfFont tableFont = PdfStandardFont(PdfFontFamily.timesRoman, 12);
+
+    // Draw Title
+    page.graphics.drawString(
+      'CLASS TIMETABLE',
+      titleFont,
+      bounds: Rect.fromLTWH(0, 20, page.getClientSize().width, 30),
+      format: PdfStringFormat(alignment: PdfTextAlignment.center),
+    );
+
+    // Create a PDF grid
+    final PdfGrid grid = PdfGrid();
+
+    // Add columns to the grid
+    grid.columns.add(count: 6);
+
+    // Set borderless style
+    final PdfPen transparentPen = PdfPen(PdfColor(255, 255, 255), width: 0);
+    grid.style.borderOverlapStyle = PdfBorderOverlapStyle.overlap;
+
+    // Add headers
+    final PdfGridRow header = grid.headers.add(1)[0];
+    header.cells[0].value = 'Day';
+    header.cells[1].value = 'Period';
+    header.cells[2].value = 'Teacher';
+    header.cells[3].value = 'Subject';
+    header.cells[4].value = 'Class';
+    header.cells[5].value = 'Time';
+
+    // Apply font and transparent borders to all cells
+    for (int i = 0; i < grid.headers.count; i++) {
+      for (int j = 0; j < grid.headers[i].cells.count; j++) {
+        header.cells[j].style.font = tableFont;
+        grid.headers[i].cells[j].style.borders.all = transparentPen;
+      }
+    }
+
+    // Add sample rows from the screenshot provided by user
+    _addSampleRow(
+      grid,
+      transparentPen,
+      tableFont,
+      'Monday',
+      '1',
+      'Sharina',
+      'Java',
+      '10A',
+      '9:00 - 9:45',
+    );
+    _addSampleRow(
+      grid,
+      transparentPen,
+      tableFont,
+      'Monday',
+      '2',
+      'Arun',
+      'Python',
+      '10B',
+      '9:45 - 10:30',
+    );
+    _addSampleRow(
+      grid,
+      transparentPen,
+      tableFont,
+      'Monday',
+      '3',
+      'Divya',
+      'C Programming',
+      '10A',
+      '10:45 - 11:30',
+    );
+
+    // Draw the grid to the page, starting below the title
+    grid.draw(page: page, bounds: const Rect.fromLTWH(0, 80, 0, 0));
+
+    // Save the document as bytes
+    final List<int> bytes = document.saveSync();
+
+    // Dispose the document
+    document.dispose();
+
+    return bytes;
+  }
+
+  static void _addSampleRow(
+    PdfGrid grid,
+    PdfPen borderPen,
+    PdfFont font,
+    String day,
+    String period,
+    String teacher,
+    String subject,
+    String className,
+    String time,
+  ) {
+    final PdfGridRow row = grid.rows.add();
+    row.cells[0].value = day;
+    row.cells[1].value = period;
+    row.cells[2].value = teacher;
+    row.cells[3].value = subject;
+    row.cells[4].value = className;
+    row.cells[5].value = time;
+
+    // Apply transparent border and font
+    for (int i = 0; i < row.cells.count; i++) {
+      row.cells[i].style.font = font;
+      row.cells[i].style.borders.all = borderPen;
+    }
+  }
+
+  /// Helper to split line into parts using various separators
+  static List<String> _splitLine(String line) {
+    if (line.contains(',')) {
+      return line.split(',').map((p) => p.trim()).toList();
+    } else if (line.contains('\t')) {
+      return line
+          .split('\t')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+    } else if (line.contains(RegExp(r'\s{2,}'))) {
+      return line
+          .split(RegExp(r'\s{2,}'))
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+    } else if (line.contains(' ')) {
+      return line
+          .split(' ')
+          .map((p) => p.trim())
+          .where((p) => p.isNotEmpty)
+          .toList();
+    }
+    return [line.trim()];
   }
 }

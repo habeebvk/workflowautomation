@@ -239,12 +239,6 @@ class AppsDrawer extends StatelessWidget {
   final UserModel user;
   const AppsDrawer({super.key, required this.user});
 
-  // Direct push navigation helper
-  void _openScreen(BuildContext context, Widget page) {
-    Navigator.pop(context); // close drawer
-    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-  }
-
   @override
   Widget build(BuildContext context) {
     final languageProvider = Provider.of<LanguageProvider>(context);

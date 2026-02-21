@@ -39,7 +39,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'ai_workflow.db');
     return await openDatabase(
       path,
-      version: 12, // 🔹 Version bumped to 12 for notifications
+      version: 13, // 🔹 Version bumped to 13 for pdf_path
       onCreate: _onCreate,
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -117,6 +117,12 @@ class DatabaseService {
             )
           ''');
         }
+        if (oldVersion < 13) {
+          // 🔹 Add pdf_path column to notes
+          await db.execute('''
+            ALTER TABLE notes ADD COLUMN pdf_path TEXT
+          ''');
+        }
       },
     );
   }
@@ -159,6 +165,7 @@ class DatabaseService {
         teacher TEXT,
         semester TEXT,
         content TEXT,
+        pdf_path TEXT,
         is_bookmarked INTEGER DEFAULT 0
       )
     ''');

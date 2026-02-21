@@ -12,7 +12,13 @@ import 'package:aiworkflowautomation/utility/screen_utility.dart';
 import 'package:aiworkflowautomation/service/deepseek_service.dart';
 import 'package:aiworkflowautomation/model/userModel.dart'; // Keep for ChatMessage? Or remove if unused?
 import 'package:aiworkflowautomation/model/notification_model.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
 
 class AiNoteScreen extends StatefulWidget {
@@ -48,6 +54,8 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
     final TextEditingController teacherController = TextEditingController();
     final TextEditingController semController = TextEditingController();
     final TextEditingController contentController = TextEditingController();
+    String? selectedPdfPath;
+    String? pdfFileName;
 
     showDialog(
       context: context,
@@ -87,6 +95,42 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
                     ),
                     maxLines: 3,
                   ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(
+                                type: FileType.custom,
+                                allowedExtensions: ['pdf'],
+                              );
+
+                          if (result != null) {
+                            setState(() {
+                              selectedPdfPath = result.files.single.path;
+                              pdfFileName = result.files.single.name;
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.attach_file),
+                        label: Text(
+                          pdfFileName ??
+                              languageProvider.translate('attach_pdf'),
+                        ),
+                      ),
+                      if (pdfFileName != null)
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              selectedPdfPath = null;
+                              pdfFileName = null;
+                            });
+                          },
+                          icon: const Icon(Icons.close, color: Colors.red),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               actions: [
@@ -99,13 +143,30 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
                     if (subjectController.text.isNotEmpty &&
                         teacherController.text.isNotEmpty &&
                         semController.text.isNotEmpty &&
-                        contentController.text.isNotEmpty) {
+                        (contentController.text.isNotEmpty ||
+                            selectedPdfPath != null)) {
                       try {
+                        String? finalPdfPath;
+                        if (selectedPdfPath != null) {
+                          // Copy PDF to local storage
+                          final directory =
+                              await getApplicationDocumentsDirectory();
+                          final String fileName = p.basename(selectedPdfPath!);
+                          final String localPath = p.join(
+                            directory.path,
+                            fileName,
+                          );
+                          final File pdfFile = File(selectedPdfPath!);
+                          await pdfFile.copy(localPath);
+                          finalPdfPath = localPath;
+                        }
+
                         final newNote = NoteData(
                           subject: subjectController.text,
                           teacher: teacherController.text,
                           semester: semController.text,
                           content: contentController.text,
+                          pdfPath: finalPdfPath,
                         );
 
                         await DatabaseService().insertNote(newNote);
@@ -284,13 +345,31 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
     );
 
     try {
+      String contentToSummarize = note.content;
+
+      if (note.pdfPath != null) {
+        final File file = File(note.pdfPath!);
+        if (await file.exists()) {
+          final PdfDocument document = PdfDocument(
+            inputBytes: await file.readAsBytes(),
+          );
+          contentToSummarize = PdfTextExtractor(document).extractText();
+          document.dispose();
+
+          if (contentToSummarize.trim().isEmpty) {
+            contentToSummarize =
+                note.content; // Fallback to content if PDF is empty
+          }
+        }
+      }
+
       final DeepSeekChatService chatService = DeepSeekChatService();
       // Using a valid User message structure
       final String summary = await chatService.sendMessage([
         ChatMessage(
           role: "user",
           content:
-              "Summarize the following note in 3 or 4 sentences:\nContent: ${note.content}",
+              "Summarize the following content in 3 or 4 sentences:\nContent: $contentToSummarize",
         ),
       ]);
 
@@ -299,9 +378,23 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(
-              "Summary: ${note.subject}",
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "Summary: ${note.subject}",
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download, color: Colors.blueGrey),
+                  onPressed: () async {
+                    await _downloadSummary(note.subject, summary);
+                  },
+                  tooltip: "Download PDF",
+                ),
+              ],
             ),
             content: SingleChildScrollView(
               child: Text(summary, style: GoogleFonts.poppins(fontSize: 14)),
@@ -321,6 +414,48 @@ class _AiNoteScreenState extends State<AiNoteScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text("Failed to summarize: $e")));
+      }
+    }
+  }
+
+  Future<void> _downloadSummary(String subject, String summary) async {
+    try {
+      final PdfDocument document = PdfDocument();
+      final PdfPage page = document.pages.add();
+      final PdfFont font = PdfStandardFont(PdfFontFamily.helvetica, 14);
+
+      page.graphics.drawString(
+        "Summary: $subject\n\n$summary",
+        font,
+        bounds: Rect.fromLTWH(
+          0,
+          0,
+          page.getClientSize().width,
+          page.getClientSize().height,
+        ),
+      );
+
+      final List<int> bytes = await document.save();
+      document.dispose();
+
+      final String fileName =
+          "${subject.replaceAll(' ', '_')}_summary_${DateTime.now().millisecondsSinceEpoch}.pdf";
+
+      final String? path = await FilePicker.platform.saveFile(
+        fileName: fileName,
+        bytes: Uint8List.fromList(bytes),
+      );
+
+      if (path != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("PDF Saved Successfully")));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to download PDF: $e")));
       }
     }
   }

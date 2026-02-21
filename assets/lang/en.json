@@ -26,5 +26,7 @@
     "question": "Question",
     "please_fill_all_fields": "Please fill all fields",
     "note_added_successfully": "Note added successfully",
-    "activity_added_successfully": "Activity added successfully"
+    "activity_added_successfully": "Activity added successfully",
+    "attach_pdf": "Attach PDF",
+    "view_pdf": "View PDF"
 }

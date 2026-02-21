@@ -1,5 +1,4 @@
 import 'package:aiworkflowautomation/home_screen.dart';
-import 'package:aiworkflowautomation/model/user_model.dart';
 import 'package:aiworkflowautomation/service/database_service.dart';
 import 'package:aiworkflowautomation/signup.dart';
 import 'package:aiworkflowautomation/teachers/teacher_home.dart';
@@ -285,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(color: Colors.black),
         ),
       ),
     );

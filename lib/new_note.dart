@@ -3,6 +3,8 @@ import 'package:aiworkflowautomation/service/database_service.dart';
 import 'package:aiworkflowautomation/utility/screen_utility.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'dart:io';
 
 class NewNoteScreen extends StatefulWidget {
   final NoteData note;
@@ -55,7 +57,6 @@ class _NewNoteScreenState extends State<NewNoteScreen> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    final bool isTablet = Responsive.isTablet(context);
 
     final double maxWidth = isMobile ? double.infinity : 600;
     final double titleSize = isMobile ? 16 : 18;
@@ -131,31 +132,81 @@ class _NewNoteScreenState extends State<NewNoteScreen> {
 
                 const SizedBox(height: 24),
 
-                // 🔹 ACTION BUTTON
-                SizedBox(
-                  width: double.infinity,
-                  height: buttonHeight,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isBookmarked
-                          ? Colors.grey
-                          : Colors.blueGrey,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                const SizedBox(height: 24),
+
+                // 🔹 ACTION BUTTONS
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: buttonHeight,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isBookmarked
+                                ? Colors.grey
+                                : Colors.blueGrey,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _toggleBookmark,
+                          child: Text(
+                            _isBookmarked
+                                ? "Remove from Bookmarks"
+                                : "Add to Bookmarks",
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: isMobile ? 14 : 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    onPressed: _toggleBookmark,
-                    child: Text(
-                      _isBookmarked
-                          ? "Remove from Bookmarks"
-                          : "Add to Bookmarks",
-                      style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: isMobile ? 16 : 18,
-                        fontWeight: FontWeight.w500,
+                    if (widget.note.pdfPath != null) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: buttonHeight,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => Scaffold(
+                                    appBar: AppBar(
+                                      title: Text(widget.note.subject),
+                                    ),
+                                    body: SfPdfViewer.file(
+                                      File(widget.note.pdfPath!),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.picture_as_pdf,
+                              color: Colors.white,
+                            ),
+                            label: Text(
+                              "View PDF",
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: isMobile ? 14 : 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    ],
+                  ],
                 ),
               ],
             ),

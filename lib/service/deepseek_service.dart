@@ -12,13 +12,15 @@ class DeepSeekChatService {
         "Authorization": "Bearer ${DeepSeekConfig.apiKey}",
       },
       body: jsonEncode({
-        "model": "openrouter/free",
+        "model": DeepSeekConfig.model,
         "messages": messages.map((m) => m.toJson()).toList(),
       }),
     );
 
     if (response.statusCode != 200) {
-      throw Exception("DeepSeek API error: ${response.body}");
+      throw Exception(
+        "DeepSeek API error (${response.statusCode}): ${response.body}",
+      );
     }
 
     final data = jsonDecode(response.body);

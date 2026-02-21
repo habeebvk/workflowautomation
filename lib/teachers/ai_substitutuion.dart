@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:aiworkflowautomation/utility/screen_utility.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -179,6 +180,53 @@ class _AiSubstitutionState extends State<AiSubstitution> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error uploading timetable: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadSamplePdf() async {
+    try {
+      // Generate PDF bytes
+      final bytes = TimetableParser.generateSamplePdf();
+
+      // Use FilePicker to let user choose where to save the file
+      // This provides a native "save as" dialog on Android/iOS/Desktop
+      final outputPath = await FilePicker.platform.saveFile(
+        fileName: 'sample_timetable.pdf',
+        allowedExtensions: ['pdf'],
+        type: FileType.custom,
+        bytes: Uint8List.fromList(bytes),
+      );
+
+      if (outputPath == null) return;
+
+      // Ensure the file is actually written (some platforms just return the path)
+      final file = File(outputPath);
+      if (!await file.exists() || (await file.length()) == 0) {
+        await file.writeAsBytes(bytes);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Sample PDF saved successfully'),
+            backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {},
+              textColor: Colors.white,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving sample PDF: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -394,6 +442,11 @@ class _AiSubstitutionState extends State<AiSubstitution> {
             tooltip: 'Refresh',
             onPressed: () => _loadTimetableForDay(selectedDay),
           ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Download Sample PDF',
+            onPressed: _downloadSamplePdf,
+          ),
         ],
       ),
       body: SafeArea(
@@ -450,6 +503,15 @@ class _AiSubstitutionState extends State<AiSubstitution> {
                             icon: const Icon(Icons.upload),
                             label: Text(
                               'Upload Timetable',
+                              style: GoogleFonts.poppins(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton.icon(
+                            onPressed: _downloadSamplePdf,
+                            icon: const Icon(Icons.download),
+                            label: Text(
+                              'Download Sample PDF',
                               style: GoogleFonts.poppins(),
                             ),
                           ),

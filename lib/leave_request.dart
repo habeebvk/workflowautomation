@@ -56,9 +56,8 @@ class _LeaveRequestState extends State<LeaveRequest> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = Responsive.isMobile(context);
-    final bool isTablet = Responsive.isTablet(context);
 
-    final double maxWidth = isMobile ? double.infinity : 500;
+    final double maxWidth = isMobile ? double.infinity : 600;
     final double fieldSpacing = isMobile ? 12 : 16;
     final double buttonHeight = isMobile ? 50 : 56;
     final double titleSize = isMobile ? 18 : 20;

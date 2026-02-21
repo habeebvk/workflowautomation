@@ -4,6 +4,7 @@ class NoteData {
   final String teacher;
   final String semester;
   final String content;
+  final String? pdfPath;
   final bool isBookmarked;
 
   NoteData({
@@ -12,6 +13,7 @@ class NoteData {
     required this.teacher,
     required this.semester,
     required this.content,
+    this.pdfPath,
     this.isBookmarked = false,
   });
 
@@ -22,6 +24,7 @@ class NoteData {
       'teacher': teacher,
       'semester': semester,
       'content': content,
+      'pdf_path': pdfPath,
       'is_bookmarked': isBookmarked ? 1 : 0,
     };
   }
@@ -33,6 +36,7 @@ class NoteData {
       teacher: map['teacher'],
       semester: map['semester'],
       content: map['content'],
+      pdfPath: map['pdf_path'],
       isBookmarked: map['is_bookmarked'] == 1,
     );
   }
